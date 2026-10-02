@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as Tone from 'tone';
+import { isMuted } from '@/lib/audio';
 import {
   TWINKLE_CHART, TWINKLE_BPM, SONG_DURATION_SEC,
   beatsToSeconds, type ChartNote,
@@ -89,7 +90,7 @@ export function ShiverRhythmGame({ onFinish, onShiverSuccess, onMiss }: Props) {
     TWINKLE_CHART.forEach(n => {
       const delayMs = (beatsToSeconds(n.t) + FALL_DURATION_SEC) * 1000;
       setTimeout(() => {
-        if (synthRef.current && !finishedRef.current) {
+        if (synthRef.current && !finishedRef.current && !isMuted()) {
           synthRef.current.triggerAttackRelease(n.pitch, beatsToSeconds(n.dur));
         }
       }, delayMs);

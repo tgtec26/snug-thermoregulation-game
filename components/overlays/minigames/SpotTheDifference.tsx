@@ -146,6 +146,7 @@ export function SpotTheDifference({ onFinish, variant = 'ski' }: Props) {
       adjustTemp(-0.1);
       playSfx('correct');
     } else {
+      playSfx('wrong');
       setWrongCount(c => c + 1);
       setWrongFlash({ x: clickX, y: clickY, key: Date.now() });
     }

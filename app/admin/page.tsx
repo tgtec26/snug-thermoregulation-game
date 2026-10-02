@@ -6,6 +6,7 @@ import type {
   CountryMapPaths, CountryMapPathKey, CountryMapKey,
   QuizQuestion,
 } from '@/game/types';
+import { AudioAdminSection } from '@/components/AudioAdminSection';
 import { bezierSvgPath } from '@/game/utils/bezier';
 import {
   type TeacherLine,
@@ -1215,6 +1216,9 @@ export default function AdminPage() {
           🟢 초록 원 = 정답 클릭 영역 / nL = 왼쪽 그림, nR = 오른쪽 그림 (드래그) / 우측 패널에서 라벨·반경 편집
         </p>
       </section>
+
+      {/* ── 음향 ─────────────────────────────────────────────────────────── */}
+      <AudioAdminSection />
     </main>
   );
 }

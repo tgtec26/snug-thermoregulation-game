@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import type { MinigameResult } from '../MinigameModal';
+import { playSfx } from '@/lib/audio';
 
 /**
  * 사우나(추1 실내) — 아이템 두더지 (풀스크린).
@@ -168,6 +169,7 @@ export function WhackWordMole({ onFinish }: Props) {
 
   const whack = (m: Mole) => {
     if (m.state !== 'pending' || finished) return;
+    playSfx(m.isGood ? 'whack_good' : 'whack_bad');
     if (m.isGood) {
       scoreRef.current = Math.min(99, scoreRef.current + 2);
       adjustTemp(-0.05);

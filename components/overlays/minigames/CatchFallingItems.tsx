@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import type { MinigameResult } from '../MinigameModal';
+import { playSfx } from '@/lib/audio';
 
 /**
  * 사막 (더운 환경) — PANG 스타일 슈팅 게임.
@@ -175,6 +176,7 @@ export function CatchFallingItems({ onFinish }: Props) {
     if (now - lastShotRef.current < BULLET_COOLDOWN_MS) return;
     if (now < hitUntilRef.current) return;
     lastShotRef.current = now;
+    playSfx('shoot');
     bulletsRef.current = [
       ...bulletsRef.current,
       { id: nextId(), x: playerXRef.current, y: FIELD_H - PLAYER_H + 12 },
@@ -334,6 +336,7 @@ export function CatchFallingItems({ onFinish }: Props) {
           scoreRef.current = Math.max(-99, Math.min(99, scoreRef.current + it.delta));
           setScore(scoreRef.current);
           adjustTemp(-0.08 * it.delta);
+          playSfx(it.delta > 0 ? 'item_good' : 'item_bad');
           popped = { delta: it.delta, tier: it.tier, x: it.x, y: ny - 36 };
           continue;
         }

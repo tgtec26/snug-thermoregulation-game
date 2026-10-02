@@ -1,0 +1,30 @@
+{
+  "bgmVolume": 0.45,
+  "sfxVolume": 0.7,
+  "bgm": {
+    "start_ending": "/assets/audio/start_ending.mp3",
+    "bus": "/assets/audio/bus.mp3",
+    "airplane": "/assets/audio/airplane.mp3",
+    "finland": "/assets/audio/finland.mp3",
+    "canada": "/assets/audio/canada.mp3",
+    "dubai": "/assets/audio/dubai.mp3",
+    "egypt": "/assets/audio/egypt.mp3",
+    "quiz-background": "/assets/audio/quiz-background.mp3",
+    "mole_game": "/assets/audio/mole_game.mp3",
+    "pang": "/assets/audio/pang.m4a",
+    "diff": "/assets/audio/diff.mp3",
+    "rock": "/assets/audio/rock.mp3"
+  },
+  "sfx": {
+    "success": "/assets/audio/success.mp3",
+    "correct": "/assets/audio/correct.mp3",
+    "error": "/assets/audio/error.mp3",
+    "whack_good": "/assets/audio/balloon_pop.mp3",
+    "whack_bad": "/assets/audio/error.mp3",
+    "item_good": "/assets/audio/book_pickup.mp3",
+    "item_bad": "/assets/audio/error.mp3",
+    "shoot": "/assets/audio/laser.mp3",
+    "wrong": "/assets/audio/error.mp3",
+    "fanfare": "/assets/audio/770801_fanfare.mp3"
+  }
+}

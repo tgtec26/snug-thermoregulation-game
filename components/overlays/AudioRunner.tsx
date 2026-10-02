@@ -2,14 +2,15 @@
 
 import { useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import { playBgm, stopBgm, type BgmKey } from '@/lib/audio';
+import { playBgm, stopBgm, playSfx, unlockAudio, type BgmKey } from '@/lib/audio';
 import type { Phase, Country } from '@/game/types';
 
 /**
  * phase 변화에 맞춰 BGM 자동 전환.
  * SFX(success/correct/error)는 호출지(MinigameModal/QuizModal)에서 직접 emit.
+ * 엔딩 진입 시 팡파르.
  */
-function pickBgm(phase: Phase, actualCold: Country | null, actualHot: Country | null): BgmKey | null {
+export function pickBgm(phase: Phase, actualCold: Country | null, actualHot: Country | null): BgmKey | null {
   switch (phase) {
     case 'title':
     case 'classroom_intro':
@@ -81,6 +82,22 @@ export function AudioRunner() {
     if (bgm) playBgm(bgm);
     else stopBgm();
   }, [phase, actualCold, actualHot]);
+
+  // 엔딩 최종 피날레 팡파르
+  useEffect(() => {
+    if (phase === 'ending') playSfx('fanfare');
+  }, [phase]);
+
+  // 새로고침 등으로 시작 탭 화면이 없어도, 첫 입력에서 오디오를 풀고 BGM 재시도
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
 
   return null;
 }

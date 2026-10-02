@@ -3,6 +3,7 @@
 import { useLayoutEffect, useState } from 'react';
 import { GameContainer } from '@/components/GameContainer';
 import { UIOverlay } from '@/components/UIOverlay';
+import { MuteButton } from '@/components/overlays/MuteButton';
 import { TapToStartOverlay } from '@/components/overlays/TapToStartOverlay';
 
 const STAGE_W = 1280;
@@ -51,6 +52,7 @@ export default function Home() {
         >
           <UIOverlay />
         </div>
+        <MuteButton />
       </div>
       <TapToStartOverlay />
     </main>
