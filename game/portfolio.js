@@ -62,6 +62,25 @@ export function updatePreviewObjectUrl(/** @type {{currentUrl:string,blob:Blob|n
   return params.blob ? params.createObjectURL(params.blob) : '';
 }
 
+export function createPortfolioRequestTracker() {
+  let revision = 0;
+  let mounted = true;
+  return {
+    snapshot() {
+      return revision;
+    },
+    invalidate() {
+      revision += 1;
+    },
+    unmount() {
+      mounted = false;
+    },
+    isCurrent(/** @type {number} */ snapshot) {
+      return mounted && revision === snapshot;
+    },
+  };
+}
+
 export function bindPortfolioTextInput(
   /** @type {EventTarget & {value:string,dataset:{pf?:string}}} */ input,
   /** @type {{update:(patch:Record<string,string>)=>void,resetRetry:()=>void,resetConfirmation:()=>void,render:()=>void}} */ handlers,

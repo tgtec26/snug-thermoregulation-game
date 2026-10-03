@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   classesForTeacherGrade,
+  createPortfolioRequestTracker,
   gradesForTeacher,
   normalizeDestinationCatalog,
   parseStudentNumbers,
@@ -80,7 +81,9 @@ export function PortfolioSubmitter({
   const [previewUrl, setPreviewUrl] = useState('');
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestTrackerRef = useRef(createPortfolioRequestTracker());
 
+  useEffect(() => () => { requestTrackerRef.current.unmount(); }, []);
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
   useEffect(() => {
     let alive = true;
@@ -107,12 +110,15 @@ export function PortfolioSubmitter({
   const ready = !!(destination.portfolioBaseUrl && destination.teacherId && destination.grade && destination.classNo && numbers.length);
 
   const clearConfirmation = () => {
+    requestTrackerRef.current.invalidate();
+    setBusy(false);
     setConfirmed(false);
     setStatus('');
     setPreviewBlob(null);
     setPreviewUrl(current => updatePreviewObjectUrl({ currentUrl: current, blob: null, createObjectURL: URL.createObjectURL, revokeObjectURL: URL.revokeObjectURL }));
   };
   const changeDestination = (patch: Partial<Destination>, clearRetry = true) => {
+    abortRef.current?.abort();
     setDestination(d => ({ ...d, ...patch }));
     if (clearRetry) setRetryNumbers('');
     clearConfirmation();
@@ -124,21 +130,25 @@ export function PortfolioSubmitter({
   const submit = async () => {
     if (busy || !ready) return;
     if (!confirmed) {
+      const revision = requestTrackerRef.current.snapshot();
       setBusy(true);
       setStatus('PNG 미리보기를 만드는 중입니다.');
       try {
         const blob = await makePngBlob();
+        if (!requestTrackerRef.current.isCurrent(revision)) return;
         setPreview(blob);
         setConfirmed(true);
         setStatus('대상과 PNG 미리보기를 확인했습니다. 한 번 더 누르면 전송합니다.');
       } catch (err) {
+        if (!requestTrackerRef.current.isCurrent(revision)) return;
         setPreview(null);
         setStatus(`PNG 미리보기 실패: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
-        setBusy(false);
+        if (requestTrackerRef.current.isCurrent(revision)) setBusy(false);
       }
       return;
     }
+    const revision = requestTrackerRef.current.snapshot();
     setBusy(true);
     setStatus('제출 중입니다. 창을 닫지 마세요.');
     const controller = new AbortController();
@@ -152,17 +162,27 @@ export function PortfolioSubmitter({
         description,
         signal: controller.signal,
       });
+      if (!requestTrackerRef.current.isCurrent(revision)) return;
       const retry = result.retryStudentNumbers.join(', ');
       setRetryNumbers(retry);
       setStatus(result.ok ? '등록이 완료되었습니다.' : `일부만 등록되었습니다. 다시 시도할 번호: ${retry}`);
       if (result.ok) setPreview(null);
       setConfirmed(false);
     } catch (err) {
+      if (!requestTrackerRef.current.isCurrent(revision)) return;
       setStatus(err instanceof DOMException && err.name === 'AbortError' ? '제출을 취소했습니다.' : `제출 실패: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
-      abortRef.current = null;
-      setBusy(false);
+      if (abortRef.current === controller) abortRef.current = null;
+      if (requestTrackerRef.current.isCurrent(revision)) setBusy(false);
     }
+  };
+  const cancel = () => {
+    requestTrackerRef.current.invalidate();
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setBusy(false);
+    setConfirmed(false);
+    setStatus('제출을 취소했습니다.');
   };
 
   return (
@@ -218,7 +238,7 @@ export function PortfolioSubmitter({
       <p className="mt-1 min-h-[20px]" role="status">{status || catalogStatus}</p>
       <div className="mt-2 flex gap-2 justify-end">
         <button type="button" onClick={submit} disabled={busy || !ready} className="rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white disabled:opacity-50">{confirmed ? '확인 후 전송' : '대상 확인'}</button>
-        {busy && <button type="button" onClick={() => abortRef.current?.abort()} className="rounded-xl border border-slate-300 px-4 py-2 font-bold">취소</button>}
+        {busy && <button type="button" onClick={cancel} className="rounded-xl border border-slate-300 px-4 py-2 font-bold">취소</button>}
       </div>
     </div>
   );

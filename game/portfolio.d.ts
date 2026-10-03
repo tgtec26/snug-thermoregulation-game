@@ -25,6 +25,12 @@ export function updatePreviewObjectUrl(params: {
   createObjectURL: (blob: Blob) => string;
   revokeObjectURL: (url: string) => void;
 }): string;
+export function createPortfolioRequestTracker(): {
+  snapshot(): number;
+  invalidate(): void;
+  unmount(): void;
+  isCurrent(snapshot: number): boolean;
+};
 export function parseStudentNumbers(raw: string): number[];
 export function submitPortfolioGroup(params: {
   destination: {
