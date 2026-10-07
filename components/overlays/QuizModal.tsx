@@ -14,6 +14,7 @@ export function QuizModal() {
   const setPhase = useGameStore(s => s.setPhase);
   const attemptedIds = useGameStore(s => s.airportQuizAttemptedIds);
   const recordQuizAttempt = useGameStore(s => s.recordQuizAttempt);
+  const completeQuiz = useGameStore(s => s.completeQuiz);
   const showToast = useGameStore(s => s.showToast);
 
   const [open, setOpen] = useState(false);
@@ -64,6 +65,7 @@ export function QuizModal() {
     setShowExplanation(result);
     playSfx(result.correct ? 'correct' : 'error');
     if (result.correct) {
+      completeQuiz();
       // 1.8초 후 모달 닫고 phase 진행
       setTimeout(() => {
         setOpen(false);

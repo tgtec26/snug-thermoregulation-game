@@ -54,6 +54,7 @@ export class CountryMapScene extends Phaser.Scene {
   }
 
   create() {
+    useGameStore.getState().setMapPosition(this.position);
     // HUD 미표시 씬이므로 풀 폭(1280) 사용 — 어드민에서 저장한 노드/경로 좌표(1280 viewBox)와 일치
     this.add.image(0, 0, `map_${this.country}`).setOrigin(0, 0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
 

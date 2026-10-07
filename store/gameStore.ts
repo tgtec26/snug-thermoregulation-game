@@ -4,6 +4,7 @@ import type {
   Phase, Country, VesselState, SceneNodes,
 } from '@/game/types';
 import { TEMP_INITIAL, TEMP_SAFE_MIN, TEMP_SAFE_MAX } from '@/game/config';
+import { isPhase, isCold, isHot, isCountry, isMapPosition, isMinigame, minigameIntro, safeCheckpointPhase, type MapPosition } from '@/game/systems/checkpoint';
 
 export interface GameState {
   // 식별
@@ -16,6 +17,10 @@ export interface GameState {
   actualCold: Country | null;
   actualHot: Country | null;
   completedCountries: Country[];
+  mapPosition: MapPosition;
+  challengeCheckpoint: { phase: Phase; currentTemp: number; inSafeZoneTicks: number; totalTicks: number; vesselState: VesselState; sweatLevel: number; thyroxineLevel: number } | null;
+  quizWrongPhases: Phase[];
+  quizPassedPhases: Phase[];
 
   // 체온 시스템
   currentTemp: number;
@@ -49,6 +54,7 @@ export interface GameState {
 
   // 액션
   setPhase: (p: Phase) => void;
+  setMapPosition: (p: MapPosition) => void;
   setNickname: (n: string) => void;
   chooseCold: (c: Country) => void;
   chooseHot: (c: Country) => void;
@@ -60,6 +66,7 @@ export interface GameState {
   setThyroxineLevel: (n: number) => void;
   recordTick: () => void;
   recordQuizAttempt: (questionId: string, wasFirstAttempt: boolean) => void;
+  completeQuiz: () => void;
   setCharacterPos: (x: number, y: number) => void;
   showToast: (message: string) => void;
   setGuidance: (text: string) => void;
@@ -71,9 +78,9 @@ export interface GameState {
 }
 
 const initialState: Omit<GameState,
-  | 'setPhase' | 'setNickname' | 'chooseCold' | 'chooseHot' | 'setActualCountries'
+  | 'setPhase' | 'setMapPosition' | 'setNickname' | 'chooseCold' | 'chooseHot' | 'setActualCountries'
   | 'completeCountry' | 'adjustTemp' | 'setVesselState' | 'setSweatLevel'
-  | 'setThyroxineLevel' | 'recordTick' | 'recordQuizAttempt' | 'setCharacterPos'
+  | 'setThyroxineLevel' | 'recordTick' | 'recordQuizAttempt' | 'completeQuiz' | 'setCharacterPos'
   | 'showToast' | 'setGuidance' | 'setActiveNodes' | 'clickNode' | 'clearNodeClick'
   | 'setTargetNodeId' | 'reset'
 > = {
@@ -84,6 +91,10 @@ const initialState: Omit<GameState,
   actualCold: null,
   actualHot: null,
   completedCountries: [],
+  mapPosition: 'airport',
+  challengeCheckpoint: null,
+  quizWrongPhases: [],
+  quizPassedPhases: [],
   currentTemp: TEMP_INITIAL,
   inSafeZoneTicks: 0,
   totalTicks: 0,
@@ -103,10 +114,24 @@ const initialState: Omit<GameState,
 
 export const useGameStore = create<GameState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...initialState,
 
-      setPhase: (phase) => set({ phase }),
+      setPhase: (phase) => set((s) => {
+        const enteringChallenge = (phase.endsWith('_intro') && phase.startsWith('country_') && phase !== s.phase)
+          || (isMinigame(phase) && s.phase === minigameIntro(phase) && !s.challengeCheckpoint);
+        const checkpoint = enteringChallenge ? {
+          phase: minigameIntro(phase), currentTemp: s.currentTemp, inSafeZoneTicks: s.inSafeZoneTicks,
+          totalTicks: s.totalTicks, vesselState: s.vesselState,
+          sweatLevel: s.sweatLevel, thyroxineLevel: s.thyroxineLevel,
+        } : s.challengeCheckpoint;
+        const arriving = phase === 'country_1_arrived' || phase === 'country_2_arrived';
+        const mapPosition: MapPosition = arriving && s.phase.includes('outdoor') ? 'outdoor'
+          : arriving && s.phase.includes('indoor') ? 'indoor'
+          : s.mapPosition;
+        return { phase, mapPosition, challengeCheckpoint: arriving ? null : checkpoint };
+      }),
+      setMapPosition: (mapPosition) => set({ mapPosition }),
       setNickname: (nickname) => set({ nickname }),
       chooseCold: (chosenCold) => set({ chosenCold }),
       chooseHot: (chosenHot) => set({ chosenHot }),
@@ -135,16 +160,23 @@ export const useGameStore = create<GameState>()(
       }),
 
       recordQuizAttempt: (questionId, wasFirstAttempt) => set((s) => {
+        const phase = s.phase;
         const alreadyAttempted = s.airportQuizAttemptedIds.includes(questionId);
+        const isAirport = phase === 'airport_start' || phase === 'airport_1' || phase === 'airport_2';
+        if (isAirport && s.quizPassedPhases.includes(phase)) return {};
+        const firstCorrect = wasFirstAttempt && !alreadyAttempted && (!isAirport || !s.quizWrongPhases.includes(phase));
         return {
-          airportQuizAttemptedIds: alreadyAttempted
-            ? s.airportQuizAttemptedIds
-            : [...s.airportQuizAttemptedIds, questionId],
+          airportQuizAttemptedIds: alreadyAttempted ? s.airportQuizAttemptedIds : [...s.airportQuizAttemptedIds, questionId],
           airportQuizTotalAttempts: s.airportQuizTotalAttempts + 1,
-          airportQuizFirstCorrect: wasFirstAttempt
-            ? s.airportQuizFirstCorrect + 1
-            : s.airportQuizFirstCorrect,
+          airportQuizFirstCorrect: s.airportQuizFirstCorrect + (firstCorrect ? 1 : 0),
+          quizWrongPhases: isAirport && !wasFirstAttempt && !s.quizWrongPhases.includes(phase) ? [...s.quizWrongPhases, phase] : s.quizWrongPhases,
         };
+      }),
+
+      completeQuiz: () => set((s) => {
+        const phase = s.phase;
+        if ((phase !== 'airport_start' && phase !== 'airport_1' && phase !== 'airport_2') || s.quizPassedPhases.includes(phase)) return {};
+        return { quizPassedPhases: [...s.quizPassedPhases, phase] };
       }),
 
       setCharacterPos: (x, y) => set({ characterPos: { x, y } }),
@@ -170,39 +202,92 @@ export const useGameStore = create<GameState>()(
     }),
     {
       name: 'thermoregulation-game',
-      version: 2,   // 누적된 airportQuizAttemptedIds 등 무효화 (이전 세션 퀴즈 풀 고갈 방지)
-      migrate: () => ({}),   // 이전 버전 상태 전체 폐기 → initialState 사용
+      version: 3,
+      // Version 2 omitted phase. Keep the name, then safely restart progress at title.
+      migrate: (persisted, version) => version === 2 && persisted && typeof persisted === 'object'
+        ? { nickname: typeof (persisted as Record<string, unknown>).nickname === 'string' ? (persisted as Record<string, unknown>).nickname : '' }
+        : {},
+      merge: (persisted, current) => {
+        const raw = persisted && typeof persisted === 'object' ? persisted as Record<string, unknown> : {};
+        const number = (key: string, fallback: number, min: number, max: number) =>
+          typeof raw[key] === 'number' && Number.isFinite(raw[key]) ? Math.min(max, Math.max(min, raw[key])) : fallback;
+        const phase = isPhase(raw.phase) ? raw.phase : 'title';
+        const challenge = raw.challengeCheckpoint && typeof raw.challengeCheckpoint === 'object'
+          ? raw.challengeCheckpoint as Record<string, unknown> : null;
+        const validChallenge = challenge && isPhase(challenge.phase) && challenge.phase === minigameIntro(phase)
+          && typeof challenge.currentTemp === 'number' && Number.isFinite(challenge.currentTemp)
+          && typeof challenge.totalTicks === 'number' && Number.isFinite(challenge.totalTicks)
+          && typeof challenge.inSafeZoneTicks === 'number' && Number.isFinite(challenge.inSafeZoneTicks);
+        const countryList = Array.isArray(raw.completedCountries) ? raw.completedCountries.filter(isCountry) : [];
+        const airportPhases = (value: unknown) => value === 'airport_start' || value === 'airport_1' || value === 'airport_2';
+        const passedPhases: Phase[] = Array.isArray(raw.quizPassedPhases) ? [...new Set(raw.quizPassedPhases.filter(airportPhases))] : [];
+        const wrongPhases: Phase[] = Array.isArray(raw.quizWrongPhases) ? [...new Set(raw.quizWrongPhases.filter(airportPhases))] : [];
+        const state = {
+          ...current,
+          nickname: typeof raw.nickname === 'string' ? raw.nickname.slice(0, 10) : '',
+          phase,
+          chosenCold: isCold(raw.chosenCold) ? raw.chosenCold : null,
+          chosenHot: isHot(raw.chosenHot) ? raw.chosenHot : null,
+          actualCold: isCold(raw.actualCold) ? raw.actualCold : null,
+          actualHot: isHot(raw.actualHot) ? raw.actualHot : null,
+          completedCountries: [...new Set(countryList)],
+          mapPosition: isMapPosition(raw.mapPosition) ? raw.mapPosition : 'airport' as MapPosition,
+          currentTemp: number('currentTemp', TEMP_INITIAL, 33, 40),
+          inSafeZoneTicks: number('inSafeZoneTicks', 0, 0, 1_000_000),
+          totalTicks: number('totalTicks', 0, 0, 1_000_000),
+          vesselState: raw.vesselState === 'constricted' || raw.vesselState === 'dilated' ? raw.vesselState : 'normal' as VesselState,
+          sweatLevel: number('sweatLevel', 0, 0, 100),
+          thyroxineLevel: number('thyroxineLevel', 0, 0, 100),
+          airportQuizAttemptedIds: Array.isArray(raw.airportQuizAttemptedIds) ? raw.airportQuizAttemptedIds.filter((x): x is string => typeof x === 'string').slice(0, 200) : [],
+          airportQuizFirstCorrect: number('airportQuizFirstCorrect', 0, 0, 3),
+          airportQuizTotalAttempts: number('airportQuizTotalAttempts', 0, 0, 1_000),
+          quizWrongPhases: wrongPhases,
+          quizPassedPhases: passedPhases,
+          challengeCheckpoint: null,
+        };
+        state.inSafeZoneTicks = Math.min(state.inSafeZoneTicks, state.totalTicks);
+        state.airportQuizFirstCorrect = Math.min(state.airportQuizFirstCorrect, passedPhases.length);
+        if (isMinigame(phase) && !validChallenge) {
+          // A damaged in-progress save cannot safely retain rewards from an unfinished challenge.
+          state.phase = 'title';
+        } else if (isMinigame(phase) && validChallenge && challenge) {
+          state.phase = challenge.phase as Phase;
+          state.currentTemp = Math.min(40, Math.max(33, challenge.currentTemp as number));
+          state.totalTicks = Math.max(0, challenge.totalTicks as number);
+          state.inSafeZoneTicks = Math.min(state.totalTicks, Math.max(0, challenge.inSafeZoneTicks as number));
+          state.vesselState = challenge.vesselState === 'constricted' || challenge.vesselState === 'dilated' ? challenge.vesselState : 'normal';
+          state.sweatLevel = typeof challenge.sweatLevel === 'number' ? Math.min(100, Math.max(0, challenge.sweatLevel)) : 0;
+          state.thyroxineLevel = typeof challenge.thyroxineLevel === 'number' ? Math.min(100, Math.max(0, challenge.thyroxineLevel)) : 0;
+        }
+        const safePhase = safeCheckpointPhase(state);
+        if (safePhase === 'title') {
+          return { ...current, nickname: state.nickname };
+        }
+        state.phase = safePhase;
+        return state;
+      },
       storage: createJSONStorage(() =>
         typeof window !== 'undefined'
           ? window.localStorage
-          : ({
-              length: 0,
-              clear: () => {},
-              getItem: () => null,
-              key: () => null,
-              removeItem: () => {},
-              setItem: () => {},
-            } satisfies Storage)
+          : ({ length: 0, clear: () => {}, getItem: () => null, key: () => null,
+              removeItem: () => {}, setItem: () => {} } satisfies Storage)
       ),
-      partialize: (state) => {
-        // 함수·런타임 전용 상태 제외
-        // phase는 의도적으로 persist에서 빼서 새로고침마다 항상 'title'로 시작 (개발 친화적)
-        // 추후 학생용 이어하기 기능 필요 시 phase 다시 포함 + 재진입 라우팅 로직 추가
-        const { setPhase: _1, setNickname: _2, chooseCold: _3, chooseHot: _4,
-          setActualCountries: _5, completeCountry: _6, adjustTemp: _7,
-          setVesselState: _8, setSweatLevel: _9, setThyroxineLevel: _10,
-          recordTick: _11, recordQuizAttempt: _12, setCharacterPos: _13, reset: _14,
-          showToast: _15, setActiveNodes: _16, clickNode: _17, clearNodeClick: _18,
-          activeNodes: _19, pendingNodeClick: _20,
-          phase: _21,   // ← 새로고침마다 항상 title부터 시작
-          setGuidance: _22, guidance: _23,   // 런타임 안내 메시지 — 새로고침마다 초기화
-          setTargetNodeId: _24, targetNodeId: _25,   // 런타임 강조 노드 — 새로고침마다 초기화
-          airportQuizAttemptedIds: _26,   // 새로고침마다 풀 초기화 (이전 세션 누적 방지)
-          airportQuizFirstCorrect: _27,
-          airportQuizTotalAttempts: _28,
-          ...persistable } = state;
-        return persistable;
-      },
+      partialize: (s) => ({
+        nickname: s.nickname, phase: s.quizPassedPhases.includes(s.phase)
+          ? (s.phase === 'airport_start' ? 'worldmap_to_1' : s.phase === 'airport_1' ? 'worldmap_to_2' : 'worldmap_to_home')
+          : isMinigame(s.phase) && s.challengeCheckpoint ? minigameIntro(s.phase) : s.phase, chosenCold: s.chosenCold, chosenHot: s.chosenHot,
+        actualCold: s.actualCold, actualHot: s.actualHot, completedCountries: s.completedCountries,
+        mapPosition: s.mapPosition, challengeCheckpoint: s.challengeCheckpoint,
+        currentTemp: isMinigame(s.phase) && s.challengeCheckpoint ? s.challengeCheckpoint.currentTemp : s.currentTemp,
+        inSafeZoneTicks: isMinigame(s.phase) && s.challengeCheckpoint ? s.challengeCheckpoint.inSafeZoneTicks : s.inSafeZoneTicks,
+        totalTicks: isMinigame(s.phase) && s.challengeCheckpoint ? s.challengeCheckpoint.totalTicks : s.totalTicks,
+        vesselState: isMinigame(s.phase) && s.challengeCheckpoint ? s.challengeCheckpoint.vesselState : s.vesselState,
+        sweatLevel: isMinigame(s.phase) && s.challengeCheckpoint ? s.challengeCheckpoint.sweatLevel : s.sweatLevel,
+        thyroxineLevel: isMinigame(s.phase) && s.challengeCheckpoint ? s.challengeCheckpoint.thyroxineLevel : s.thyroxineLevel,
+        airportQuizAttemptedIds: s.airportQuizAttemptedIds,
+        airportQuizFirstCorrect: s.airportQuizFirstCorrect, airportQuizTotalAttempts: s.airportQuizTotalAttempts,
+        quizWrongPhases: s.quizWrongPhases, quizPassedPhases: s.quizPassedPhases,
+      }),
     }
   )
 );

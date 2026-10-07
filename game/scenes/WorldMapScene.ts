@@ -93,9 +93,11 @@ export class WorldMapScene extends Phaser.Scene {
     const { phase, setPhase, actualCold, actualHot } = useGameStore.getState();
 
     if (phase === 'worldmap_to_1') {
+      useGameStore.getState().setMapPosition('airport');
       setPhase('country_1_arrived');
       this.scene.start('country_map', { country: actualCold!, slot: 1, position: 'airport' });
     } else if (phase === 'worldmap_to_2') {
+      useGameStore.getState().setMapPosition('airport');
       setPhase('country_2_arrived');
       this.scene.start('country_map', { country: actualHot!, slot: 2, position: 'airport' });
     } else if (phase === 'worldmap_to_home') {

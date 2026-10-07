@@ -1,5 +1,7 @@
 import * as Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '@/game/config';
+import { useGameStore } from '@/store/gameStore';
+import { sceneForCheckpoint } from '@/game/systems/checkpoint';
 import { BACKGROUNDS, SPRITES, COUNTRY_MAPS, MOVE_ASSETS, PLACEHOLDER_BG_COLORS } from '@/game/asset-manifest';
 
 export class BootScene extends Phaser.Scene {
@@ -79,7 +81,8 @@ export class BootScene extends Phaser.Scene {
       });
     });
 
-    // 첫 씬으로 전이
-    this.scene.start('title');
+    // 저장된 체크포인트에 맞는 Phaser 씬으로 진입한다. persist 동기 hydration 후 실행된다.
+    const checkpoint = sceneForCheckpoint(useGameStore.getState());
+    this.scene.start(checkpoint.key, checkpoint.data);
   }
 }
