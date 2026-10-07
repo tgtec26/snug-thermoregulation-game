@@ -32,6 +32,7 @@ export function createPortfolioRequestTracker(): {
   isCurrent(snapshot: number): boolean;
 };
 export function parseStudentNumbers(raw: string): number[];
+export function remainingStudentNumbers(numbers: number[], succeeded: number[]): number[];
 export function submitPortfolioGroup(params: {
   destination: {
     portfolioBaseUrl: string;
@@ -48,4 +49,5 @@ export function submitPortfolioGroup(params: {
   description: string;
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
+  onSuccess?: (studentNumber: number) => void;
 }): Promise<{ ok: boolean; retryStudentNumbers: number[] }>;

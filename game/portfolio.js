@@ -117,6 +117,11 @@ export function parseStudentNumbers(/** @type {string} */ raw) {
     });
 }
 
+export function remainingStudentNumbers(/** @type {number[]} */ numbers, /** @type {number[]} */ succeeded) {
+  const done = new Set(succeeded);
+  return numbers.filter(number => !done.has(number));
+}
+
 export function pngFileName(/** @type {string} */ playerName, /** @type {Date} */ now = new Date()) {
   const safe = (playerName || 'student').replace(/[\\/:*?"<>|]/g, '').trim() || 'student';
   return `오차-구조대-${safe}-${now.toISOString().slice(0, 10)}.png`;
@@ -219,7 +224,8 @@ export async function submitPortfolioImage(params) {
  *  title:string,
  *  description:string,
  *  fetchImpl?:typeof fetch,
- *  signal?:AbortSignal
+ *  signal?:AbortSignal,
+ *  onSuccess?:(studentNumber:number)=>void
  * }} params
  */
 export async function submitPortfolioGroup(params) {
@@ -228,6 +234,7 @@ export async function submitPortfolioGroup(params) {
     try {
       const result = await submitPortfolioImage({ ...params, studentNumber });
       results.push({ studentNumber, ok: true, result });
+      params.onSuccess?.(studentNumber);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') throw error;
       results.push({ studentNumber, ok: false, error: error instanceof Error ? error.message : String(error) });

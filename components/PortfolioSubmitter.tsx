@@ -7,6 +7,7 @@ import {
   gradesForTeacher,
   normalizeDestinationCatalog,
   parseStudentNumbers,
+  remainingStudentNumbers,
   submitPortfolioGroup,
   teacherLabel,
   updatePreviewObjectUrl,
@@ -75,11 +76,13 @@ export function PortfolioSubmitter({
   const [destination, setDestination] = useState<Destination>({ ...EMPTY, portfolioBaseUrl: baseUrl });
   const [busy, setBusy] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [status, setStatus] = useState('');
   const [retryNumbers, setRetryNumbers] = useState('');
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const abortRef = useRef<AbortController | null>(null);
+  const succeededRef = useRef<number[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const requestTrackerRef = useRef(createPortfolioRequestTracker());
 
@@ -107,12 +110,13 @@ export function PortfolioSubmitter({
   const grades = gradesForTeacher(selectedTeacher);
   const classes = classesForTeacherGrade(selectedTeacher, destination.grade);
   const numbers = parseStudentNumbers(retryNumbers || destination.studentNumbers);
-  const ready = !!(destination.portfolioBaseUrl && destination.teacherId && destination.grade && destination.classNo && numbers.length);
+  const ready = !completed && !!(destination.portfolioBaseUrl && destination.teacherId && destination.grade && destination.classNo && numbers.length);
 
   const clearConfirmation = () => {
     requestTrackerRef.current.invalidate();
     setBusy(false);
     setConfirmed(false);
+    setCompleted(false);
     setStatus('');
     setPreviewBlob(null);
     setPreviewUrl(current => updatePreviewObjectUrl({ currentUrl: current, blob: null, createObjectURL: URL.createObjectURL, revokeObjectURL: URL.revokeObjectURL }));
@@ -153,6 +157,7 @@ export function PortfolioSubmitter({
     setStatus('제출 중입니다. 창을 닫지 마세요.');
     const controller = new AbortController();
     abortRef.current = controller;
+    succeededRef.current = [];
     try {
       const result = await submitPortfolioGroup({
         destination: { ...destination, playerName },
@@ -161,10 +166,12 @@ export function PortfolioSubmitter({
         title,
         description,
         signal: controller.signal,
+        onSuccess: (studentNumber) => succeededRef.current.push(studentNumber),
       });
       if (!requestTrackerRef.current.isCurrent(revision)) return;
       const retry = result.retryStudentNumbers.join(', ');
       setRetryNumbers(retry);
+      if (result.ok) setCompleted(true);
       setStatus(result.ok ? '등록이 완료되었습니다.' : `일부만 등록되었습니다. 다시 시도할 번호: ${retry}`);
       if (result.ok) setPreview(null);
       setConfirmed(false);
@@ -177,6 +184,7 @@ export function PortfolioSubmitter({
     }
   };
   const cancel = () => {
+    setRetryNumbers(remainingStudentNumbers(numbers, succeededRef.current).join(', '));
     requestTrackerRef.current.invalidate();
     abortRef.current?.abort();
     abortRef.current = null;
