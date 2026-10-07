@@ -75,11 +75,12 @@ export function SpotTheDifference({ onFinish, variant = 'ski' }: Props) {
   const finishedRef = useRef(false);
 
   useEffect(() => {
-    setData(DEFAULT_TARGETS[variant]);
+    const resetTimer = setTimeout(() => setData(DEFAULT_TARGETS[variant]), 0);
     fetch(`/data/spot-difference-targets-${variant}.json?t=${Date.now()}`)
       .then(r => r.ok ? r.json() : null)
       .then((d: TargetsData | null) => { if (d) setData(d); })
       .catch(() => { /* default 사용 */ });
+    return () => clearTimeout(resetTimer);
   }, [variant]);
 
   const target = data.targets.length;

@@ -23,6 +23,10 @@ type LiveNote = ChartNote & {
   state: 'pending' | 'hit' | 'miss';
 };
 
+function createNotes(): LiveNote[] {
+  return TWINKLE_CHART.map((n, i) => ({ ...n, id: `n${i}`, hitTimeSec: beatsToSeconds(n.t), state: 'pending' }));
+}
+
 interface Props {
   onFinish: (result: { hits: number; misses: number; shiverPops: number }) => void;
   onShiverSuccess: () => void;  // 콤보 N회 달성
@@ -30,7 +34,9 @@ interface Props {
 }
 
 export function ShiverRhythmGame({ onFinish, onShiverSuccess, onMiss }: Props) {
-  const [notes, setNotes] = useState<LiveNote[]>([]);
+  const [notes, setNotes] = useState<LiveNote[]>(createNotes);
+  const [hits, setHits] = useState(0);
+  const [misses, setMisses] = useState(0);
   const [combo, setCombo] = useState(0);
   const [shiverPops, setShiverPops] = useState(0);
   const [feedback, setFeedback] = useState<{ text: string; key: number; lane: number } | null>(null);
@@ -49,25 +55,13 @@ export function ShiverRhythmGame({ onFinish, onShiverSuccess, onMiss }: Props) {
 
   const startedAtRef = useRef(0);
   const rafRef = useRef<number | null>(null);
-  const notesRef = useRef<LiveNote[]>([]);
+  const notesRef = useRef<LiveNote[]>(createNotes());
   const comboRef = useRef(0);
   const hitsRef = useRef(0);
   const missesRef = useRef(0);
   const shiverPopsRef = useRef(0);
   const synthRef = useRef<Tone.PolySynth | null>(null);
   const finishedRef = useRef(false);
-
-  // 노트 사전 빌드
-  useEffect(() => {
-    const built: LiveNote[] = TWINKLE_CHART.map((n, i) => ({
-      ...n,
-      id: `n${i}`,
-      hitTimeSec: beatsToSeconds(n.t),
-      state: 'pending',
-    }));
-    setNotes(built);
-    notesRef.current = built;
-  }, []);
 
   // 게임 시작 — Tone.start()는 사용자 제스처가 필요해서 버튼 클릭으로 트리거
   const handleStart = useCallback(async () => {
@@ -117,19 +111,22 @@ export function ShiverRhythmGame({ onFinish, onShiverSuccess, onMiss }: Props) {
 
       // 놓친 노트 처리
       let missedAny = false;
-      for (const note of notesRef.current) {
+      const updatedNotes = notesRef.current.map(note => {
         if (note.state === 'pending' && t > note.hitTimeSec + HIT_WINDOW_SEC) {
-          note.state = 'miss';
           missedAny = true;
           missesRef.current += 1;
+          setMisses(missesRef.current);
           comboRef.current = 0;
           setCombo(0);
           setFeedback({ text: '아우 추워...', key: Date.now() + Math.random(), lane: note.lane });
           onMiss();
+          return { ...note, state: 'miss' as const };
         }
-      }
+        return note;
+      });
       if (missedAny) {
-        setNotes([...notesRef.current]);
+        notesRef.current = updatedNotes;
+        setNotes(updatedNotes);
       }
 
       // 곡 종료
@@ -153,22 +150,6 @@ export function ShiverRhythmGame({ onFinish, onShiverSuccess, onMiss }: Props) {
     };
   }, [started, finished, onFinish, onMiss]);
 
-  // 키 입력
-  useEffect(() => {
-    if (!started || finished) return;
-
-    const handleKey = (e: KeyboardEvent) => {
-      const laneIdx = LANE_KEYS.indexOf(e.key);
-      if (laneIdx < 0) return;
-      e.preventDefault();
-      tryHit(laneIdx);
-    };
-
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started, finished]);
-
   const tryHit = (lane: number) => {
     const now = performance.now() / 1000 - startedAtRef.current;
     // 해당 레인의 가장 가까운 pending 노트
@@ -185,14 +166,16 @@ export function ShiverRhythmGame({ onFinish, onShiverSuccess, onMiss }: Props) {
     if (!best) {
       // 빈 입력 = 미스
       missesRef.current += 1;
+      setMisses(missesRef.current);
       comboRef.current = 0;
       setCombo(0);
       setFeedback({ text: '아우 추워...', key: Date.now(), lane });
       onMiss();
       return;
     }
-    best.state = 'hit';
+    notesRef.current = notesRef.current.map(note => note.id === best.id ? { ...note, state: 'hit' as const } : note);
     hitsRef.current += 1;
+    setHits(hitsRef.current);
     comboRef.current += 1;
     setCombo(comboRef.current);
     setNotes([...notesRef.current]);
@@ -213,6 +196,22 @@ export function ShiverRhythmGame({ onFinish, onShiverSuccess, onMiss }: Props) {
       setComboFeedback({ text: `콤보 ${comboRef.current}`, key: Date.now(), lane });
     }
   };
+
+  // 키 입력
+  useEffect(() => {
+    if (!started || finished) return;
+
+    const handleKey = (e: KeyboardEvent) => {
+      const laneIdx = LANE_KEYS.indexOf(e.key);
+      if (laneIdx < 0) return;
+      e.preventDefault();
+      tryHit(laneIdx);
+    };
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, finished]);
 
   // 피드백 텍스트 자동 fade
   useEffect(() => {
@@ -564,7 +563,7 @@ export function ShiverRhythmGame({ onFinish, onShiverSuccess, onMiss }: Props) {
             <h2 className="text-3xl font-bold text-cyan-300 mb-3 font-mono">🥶 떨림 완료!</h2>
             <p className="text-white text-lg mb-1">떨림 성공 <span className="text-amber-300 font-bold">×{shiverPops}</span></p>
             <p className="text-slate-400 text-sm">
-              명중 {hitsRef.current} · 놓침 {missesRef.current}
+              명중 {hits} · 놓침 {misses}
             </p>
           </div>
         )}

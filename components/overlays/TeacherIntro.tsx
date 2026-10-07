@@ -143,15 +143,15 @@ export function TeacherIntro() {
   // phase 떠나면 진행 상태 리셋
   useEffect(() => {
     if (!isActive) {
-      setIdx(0);
-      setShown(0);
+      const timer = setTimeout(() => { setIdx(0); setShown(0); }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isActive]);
 
   // 새 phase 진입 시 처음부터 시작
   useEffect(() => {
-    setIdx(0);
-    setShown(0);
+    const timer = setTimeout(() => { setIdx(0); setShown(0); }, 0);
+    return () => clearTimeout(timer);
   }, [key]);
 
   const rawLines: TeacherLine[] =

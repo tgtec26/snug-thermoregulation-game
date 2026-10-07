@@ -102,11 +102,8 @@ export function RPSModal() {
     if (!isActive) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
-      setDecided(false);
-      setResult(null);
-      setPlayerWins(0);
-      setNpcWins(0);
-      return;
+      const resetTimer = setTimeout(() => { setDecided(false); setResult(null); setPlayerWins(0); setNpcWins(0); }, 0);
+      return () => clearTimeout(resetTimer);
     }
     if (decided) {
       if (intervalRef.current) clearInterval(intervalRef.current);

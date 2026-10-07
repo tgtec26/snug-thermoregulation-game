@@ -13,10 +13,9 @@ export function Toast() {
 
   useEffect(() => {
     if (message && message.length > 0) {
-      setText(message);
-      setShow(true);
-      const t = setTimeout(() => setShow(false), 2500);
-      return () => clearTimeout(t);
+      const showTimer = setTimeout(() => { setText(message); setShow(true); }, 0);
+      const hideTimer = setTimeout(() => setShow(false), 2500);
+      return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
     }
   }, [message]);
 

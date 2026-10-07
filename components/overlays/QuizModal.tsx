@@ -38,6 +38,7 @@ export function QuizModal() {
   // phase가 airport_* 가 되면 modal 자동으로 띄움.
   useEffect(() => {
     if (!poolReady) return;
+    const timer = setTimeout(() => {
     if (AIRPORT_QUIZ_PHASES.has(phase) && !open) {
       const q = startAirportQuiz(attemptedIds);
       if (q) {
@@ -50,6 +51,8 @@ export function QuizModal() {
         advance();
       }
     }
+    }, 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, poolReady]);
 

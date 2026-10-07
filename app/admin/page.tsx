@@ -521,7 +521,7 @@ export default function AdminPage() {
               <div className="flex items-baseline gap-2 mb-1">
                 <h3 className="text-sm font-semibold">🪧 게시판 안내 라벨</h3>
                 <span className="text-xs text-slate-400">
-                  게임 중앙 게시판에 "<span className="text-slate-200">○○ 이동하세요</span>" 형태로 표시됨
+                  게임 중앙 게시판에 &quot;<span className="text-slate-200">○○ 이동하세요</span>&quot; 형태로 표시됨
                 </span>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -545,7 +545,7 @@ export default function AdminPage() {
                 })}
               </div>
               <span className="text-xs text-slate-500 mt-1">
-                💡 저장은 위쪽 "저장" 버튼 (노드+경로 동시 저장)
+                💡 저장은 위쪽 &quot;저장&quot; 버튼 (노드+경로 동시 저장)
               </span>
             </div>
           )}
@@ -832,7 +832,7 @@ export default function AdminPage() {
                 </button>
               </div>
               {lines.length === 0 && (
-                <p className="text-slate-500 text-sm italic">멘트가 비어 있습니다. "+ 페이지 추가"로 시작.</p>
+                <p className="text-slate-500 text-sm italic">멘트가 비어 있습니다. &quot;+ 페이지 추가&quot;로 시작.</p>
               )}
               {lines.map((line, i) => {
                 const size: TeacherSize = line.size ?? 'md';

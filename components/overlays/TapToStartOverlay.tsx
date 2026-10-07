@@ -11,11 +11,11 @@ export function TapToStartOverlay() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    try {
-      if (sessionStorage.getItem('snug_tap_dismissed') !== '1') setShow(true);
-    } catch {
-      setShow(true);
-    }
+    const timer = setTimeout(() => {
+      try { if (sessionStorage.getItem('snug_tap_dismissed') !== '1') setShow(true); }
+      catch { setShow(true); }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   if (!show) return null;
