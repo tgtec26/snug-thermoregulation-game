@@ -1,0 +1,19 @@
+{
+  "state": {
+    "nickname": "기존학생",
+    "chosenCold": "finland",
+    "chosenHot": "dubai",
+    "actualCold": "finland",
+    "actualHot": "dubai",
+    "completedCountries": ["finland"],
+    "currentTemp": 36.8,
+    "inSafeZoneTicks": 42,
+    "totalTicks": 50,
+    "vesselState": "normal",
+    "sweatLevel": 12,
+    "thyroxineLevel": 27,
+    "characterPos": { "x": 612, "y": 544 },
+    "currentToast": ""
+  },
+  "version": 2
+}

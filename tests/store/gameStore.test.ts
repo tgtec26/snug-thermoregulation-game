@@ -74,6 +74,7 @@ describe('gameStore', () => {
 
   it('recordQuizAttempt — 첫 시도 정답 시 firstCorrect 증가', () => {
     const s = useGameStore.getState();
+    s.setPhase('airport_start');
     s.recordQuizAttempt('c1', true);
     expect(useGameStore.getState().airportQuizFirstCorrect).toBe(1);
     expect(useGameStore.getState().airportQuizAttemptedIds).toContain('c1');
@@ -81,6 +82,7 @@ describe('gameStore', () => {
 
   it('recordQuizAttempt — 첫 시도 오답이면 firstCorrect 변화 없음', () => {
     const s = useGameStore.getState();
+    s.setPhase('airport_start');
     s.recordQuizAttempt('c1', false);
     expect(useGameStore.getState().airportQuizFirstCorrect).toBe(0);
     expect(useGameStore.getState().airportQuizAttemptedIds).toContain('c1');

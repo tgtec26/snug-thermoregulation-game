@@ -4,7 +4,7 @@ import type {
   Phase, Country, VesselState, SceneNodes,
 } from '@/game/types';
 import { TEMP_INITIAL, TEMP_SAFE_MIN, TEMP_SAFE_MAX } from '@/game/config';
-import { isPhase, isCold, isHot, isCountry, isMapPosition, isMinigame, minigameIntro, safeCheckpointPhase, type MapPosition } from '@/game/systems/checkpoint';
+import { isPhase, isCold, isHot, isCountry, isMapPosition, isMinigame, minigameIntro, safeCheckpointPhase, migrateLegacyV2, type MapPosition } from '@/game/systems/checkpoint';
 
 export interface GameState {
   // 식별
@@ -163,8 +163,8 @@ export const useGameStore = create<GameState>()(
         const phase = s.phase;
         const alreadyAttempted = s.airportQuizAttemptedIds.includes(questionId);
         const isAirport = phase === 'airport_start' || phase === 'airport_1' || phase === 'airport_2';
-        if (isAirport && s.quizPassedPhases.includes(phase)) return {};
-        const firstCorrect = wasFirstAttempt && !alreadyAttempted && (!isAirport || !s.quizWrongPhases.includes(phase));
+        if (!isAirport || s.quizPassedPhases.includes(phase)) return {};
+        const firstCorrect = wasFirstAttempt && !alreadyAttempted && !s.quizWrongPhases.includes(phase);
         return {
           airportQuizAttemptedIds: alreadyAttempted ? s.airportQuizAttemptedIds : [...s.airportQuizAttemptedIds, questionId],
           airportQuizTotalAttempts: s.airportQuizTotalAttempts + 1,
@@ -203,10 +203,8 @@ export const useGameStore = create<GameState>()(
     {
       name: 'thermoregulation-game',
       version: 3,
-      // Version 2 omitted phase. Keep the name, then safely restart progress at title.
-      migrate: (persisted, version) => version === 2 && persisted && typeof persisted === 'object'
-        ? { nickname: typeof (persisted as Record<string, unknown>).nickname === 'string' ? (persisted as Record<string, unknown>).nickname : '' }
-        : {},
+      // Version 2 omitted phase and quiz counters; infer only checkpoints proved by its durable fields.
+      migrate: (persisted, version) => version === 2 ? migrateLegacyV2(persisted) : {},
       merge: (persisted, current) => {
         const raw = persisted && typeof persisted === 'object' ? persisted as Record<string, unknown> : {};
         const number = (key: string, fallback: number, min: number, max: number) =>
@@ -231,6 +229,14 @@ export const useGameStore = create<GameState>()(
           actualCold: isCold(raw.actualCold) ? raw.actualCold : null,
           actualHot: isHot(raw.actualHot) ? raw.actualHot : null,
           completedCountries: [...new Set(countryList)],
+          characterPos: raw.characterPos && typeof raw.characterPos === 'object'
+            && typeof (raw.characterPos as Record<string, unknown>).x === 'number'
+            && typeof (raw.characterPos as Record<string, unknown>).y === 'number'
+            && Number.isFinite((raw.characterPos as Record<string, unknown>).x)
+            && Number.isFinite((raw.characterPos as Record<string, unknown>).y)
+            ? { x: Math.min(1280, Math.max(0, (raw.characterPos as { x: number }).x)),
+                y: Math.min(800, Math.max(0, (raw.characterPos as { y: number }).y)) }
+            : current.characterPos,
           mapPosition: isMapPosition(raw.mapPosition) ? raw.mapPosition : 'airport' as MapPosition,
           currentTemp: number('currentTemp', TEMP_INITIAL, 33, 40),
           inSafeZoneTicks: number('inSafeZoneTicks', 0, 0, 1_000_000),
@@ -277,7 +283,7 @@ export const useGameStore = create<GameState>()(
           ? (s.phase === 'airport_start' ? 'worldmap_to_1' : s.phase === 'airport_1' ? 'worldmap_to_2' : 'worldmap_to_home')
           : isMinigame(s.phase) && s.challengeCheckpoint ? minigameIntro(s.phase) : s.phase, chosenCold: s.chosenCold, chosenHot: s.chosenHot,
         actualCold: s.actualCold, actualHot: s.actualHot, completedCountries: s.completedCountries,
-        mapPosition: s.mapPosition, challengeCheckpoint: s.challengeCheckpoint,
+        mapPosition: s.mapPosition, characterPos: s.characterPos, challengeCheckpoint: s.challengeCheckpoint,
         currentTemp: isMinigame(s.phase) && s.challengeCheckpoint ? s.challengeCheckpoint.currentTemp : s.currentTemp,
         inSafeZoneTicks: isMinigame(s.phase) && s.challengeCheckpoint ? s.challengeCheckpoint.inSafeZoneTicks : s.inSafeZoneTicks,
         totalTicks: isMinigame(s.phase) && s.challengeCheckpoint ? s.challengeCheckpoint.totalTicks : s.totalTicks,

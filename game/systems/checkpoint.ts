@@ -55,10 +55,10 @@ export function safeCheckpointPhase(s: CheckpointFields): Phase {
   if (phase === 'classroom_rps_hot' && (!isCold(s.actualCold) || !isHot(s.chosenHot))) return 'title';
   if ((phase === 'classroom_rps_hot_result' || phase === 'classroom_depart' || phase === 'korea_bus_to_airport' || phase === 'airport_start')
       && (!isCold(s.actualCold) || !isHot(s.actualHot))) return 'title';
-  if (phase.startsWith('country_1_') || phase === 'country_1_arrived' || phase === 'airport_1' || phase === 'worldmap_to_2') {
+  if (phase.startsWith('country_1_') || phase === 'country_1_arrived' || phase === 'worldmap_to_2') {
     if (!isCold(s.actualCold)) return 'title';
   }
-  if (phase.startsWith('country_2_') || phase === 'country_2_arrived' || phase === 'airport_2' || phase === 'worldmap_to_2' || phase === 'worldmap_to_home' || phase === 'korea_bus_to_school' || phase === 'ending') {
+  if (phase.startsWith('country_2_') || phase === 'country_2_arrived' || phase === 'airport_1' || phase === 'airport_2' || phase === 'worldmap_to_2' || phase === 'worldmap_to_home' || phase === 'korea_bus_to_school' || phase === 'ending') {
     if (!isCold(s.actualCold) || !isHot(s.actualHot)) return 'title';
   }
   if (phase === 'worldmap_to_1' && (!isCold(s.actualCold) || !isHot(s.actualHot))) return 'title';
@@ -85,4 +85,44 @@ export function sceneForCheckpoint(s: CheckpointFields): SceneCheckpoint {
     return { key: 'country', data: { country: slot === 1 ? s.actualCold! : s.actualHot!, slot, area: phase.includes('indoor') ? 'indoor' : 'outdoor' } };
   }
   return { key: 'ending' };
+}
+
+/** Version 2 stored durable measurements and country outcomes, but never stored a phase or quiz score. */
+export function migrateLegacyV2(persisted: unknown): Record<string, unknown> {
+  const raw = persisted && typeof persisted === 'object' ? persisted as Record<string, unknown> : {};
+  const nickname = typeof raw.nickname === 'string' ? raw.nickname.slice(0, 10) : '';
+  const chosenCold = isCold(raw.chosenCold) ? raw.chosenCold : null;
+  const chosenHot = isHot(raw.chosenHot) ? raw.chosenHot : null;
+  const actualCold = isCold(raw.actualCold) ? raw.actualCold : null;
+  // The old cold RPS briefly put the cold winner in actualHot as a placeholder.
+  const actualHot = isHot(raw.actualHot) ? raw.actualHot : null;
+  const claims = Array.isArray(raw.completedCountries) ? raw.completedCountries : [];
+  const completedCold = actualCold !== null && claims.includes(actualCold);
+  const completedHot = completedCold && actualHot !== null && claims.includes(actualHot);
+  const completedCountries: Country[] = [
+    ...(completedCold ? [actualCold] : []),
+    ...(completedHot ? [actualHot] : []),
+  ] as Country[];
+  const totalTicks = typeof raw.totalTicks === 'number' && Number.isFinite(raw.totalTicks)
+    ? Math.max(0, Math.floor(raw.totalTicks)) : 0;
+  let phase: Phase = 'title';
+  if (nickname.trim()) {
+    if (completedHot) phase = 'airport_2';
+    else if (completedCold && actualHot) phase = 'airport_1';
+    else if (actualCold && actualHot) phase = totalTicks > 0 ? 'country_1_arrived' : 'airport_start';
+    else if (actualCold && chosenHot) phase = 'classroom_rps_hot';
+    else if (actualCold) phase = 'classroom_choose_hot';
+    else if (chosenCold) phase = 'classroom_rps_cold_intro';
+    else phase = 'classroom_intro';
+  }
+  return {
+    nickname, phase, chosenCold, chosenHot, actualCold, actualHot,
+    completedCountries, mapPosition: 'airport',
+    currentTemp: raw.currentTemp, inSafeZoneTicks: raw.inSafeZoneTicks, totalTicks,
+    vesselState: raw.vesselState, sweatLevel: raw.sweatLevel,
+    thyroxineLevel: raw.thyroxineLevel, characterPos: raw.characterPos,
+    // No v2 quiz counters survived serialization; do not invent an award.
+    airportQuizAttemptedIds: [], airportQuizFirstCorrect: 0, airportQuizTotalAttempts: 0,
+    quizWrongPhases: [], quizPassedPhases: [],
+  };
 }
