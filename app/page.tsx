@@ -1,10 +1,11 @@
 'use client';
 
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { GameContainer } from '@/components/GameContainer';
 import { UIOverlay } from '@/components/UIOverlay';
 import { MuteButton } from '@/components/overlays/MuteButton';
 import { TapToStartOverlay } from '@/components/overlays/TapToStartOverlay';
+import { StagePreview } from '@/components/StagePreview';
 
 const STAGE_W = 1280;
 const STAGE_H = 800;
@@ -16,6 +17,8 @@ const STAGE_H = 800;
  * 두 레이어 모두 stage 박스 안에서 동일한 시각 크기 차지 → 정렬됨.
  */
 export default function Home() {
+  const [preview, setPreview] = useState(false);
+  useEffect(() => { const id = setTimeout(() => setPreview(new URLSearchParams(window.location.search).has('preview')), 0); return () => clearTimeout(id); }, []);
   const [size, setSize] = useState({ w: STAGE_W, h: STAGE_H, scale: 1 });
 
   useLayoutEffect(() => {
@@ -32,6 +35,7 @@ export default function Home() {
     };
   }, []);
 
+  if (preview) return <StagePreview />;
   return (
     <main className="fixed inset-0 overflow-hidden bg-black flex items-center justify-center">
       <div
