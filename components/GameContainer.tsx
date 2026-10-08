@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { setPhaserGame, type PausableGame } from '@/game/phaserGame';
 
 export function GameContainer() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const gameRef = useRef<unknown>(null);
+  const gameRef = useRef<PausableGame | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -15,13 +16,15 @@ export function GameContainer() {
       const { makePhaserConfig } = await import('@/game/phaserConfig');
       if (cancelled || !containerRef.current) return;
       const config = makePhaserConfig(containerRef.current);
-      gameRef.current = new Phaser.Game(config);
+      gameRef.current = new Phaser.Game(config) as unknown as PausableGame;
+      setPhaserGame(gameRef.current);
     })();
 
     return () => {
       cancelled = true;
-      // @ts-expect-error Phaser.Game 타입은 동적 임포트라 추론 불가
-      gameRef.current?.destroy?.(true);
+      gameRef.current?.destroy(true);
+      gameRef.current = null;
+      setPhaserGame(null);
     };
   }, []);
 

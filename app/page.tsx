@@ -6,6 +6,10 @@ import { UIOverlay } from '@/components/UIOverlay';
 import { MuteButton } from '@/components/overlays/MuteButton';
 import { TapToStartOverlay } from '@/components/overlays/TapToStartOverlay';
 import { StagePreview } from '@/components/StagePreview';
+import { useGameStore } from '@/store/gameStore';
+import { pauseAllScenes, resumeScenes } from '@/game/phaserGame';
+import { isMuted, setMuted } from '@/lib/audio';
+import { useRef } from 'react';
 
 const STAGE_W = 1280;
 const STAGE_H = 800;
@@ -20,6 +24,29 @@ export default function Home() {
   const [preview, setPreview] = useState(false);
   useEffect(() => { const id = setTimeout(() => setPreview(new URLSearchParams(window.location.search).has('preview')), 0); return () => clearTimeout(id); }, []);
   const [size, setSize] = useState({ w: STAGE_W, h: STAGE_H, scale: 1 });
+  const paused = useGameStore(s => s.paused);
+  const wasMuted = useRef(false);
+  const pausedScenes = useRef<string[]>([]);
+  const togglePause = () => {
+    if (paused) {
+      useGameStore.getState().setPaused(false);
+      setMuted(wasMuted.current);
+      resumeScenes(pausedScenes.current);
+      pausedScenes.current = [];
+    } else {
+      wasMuted.current = isMuted();
+      useGameStore.getState().setPaused(true);
+      setMuted(true);
+      pausedScenes.current = pauseAllScenes();
+    }
+  };
+  const resetAll = () => {
+    setMuted(wasMuted.current);
+    resumeScenes(pausedScenes.current);
+    pausedScenes.current = [];
+    useGameStore.getState().reset();
+    useGameStore.getState().setPaused(false);
+  };
 
   useLayoutEffect(() => {
     const update = () => {
@@ -57,6 +84,18 @@ export default function Home() {
           <UIOverlay />
         </div>
         <MuteButton />
+        <div className="absolute top-2 right-2 z-40 flex gap-2">
+          <button type="button" onClick={togglePause} className="rounded-lg bg-black/75 px-3 py-2 text-white" aria-label={paused ? '계속하기' : '일시정지'}>{paused ? '계속하기' : '일시정지'}</button>
+          <button type="button" onClick={resetAll} className="rounded-lg bg-black/75 px-3 py-2 text-white" aria-label="새로 시작">새로 시작</button>
+        </div>
+        {paused && (
+          <div className="absolute inset-0 z-[80] grid place-items-center bg-black/70" role="alertdialog" aria-label="일시정지">
+            <div className="rounded-2xl bg-white px-10 py-8 text-center text-black">
+              <p className="text-2xl font-bold">일시정지 중</p>
+              <button type="button" onClick={togglePause} className="mt-4 rounded-xl bg-amber-500 px-8 py-3 text-xl font-bold text-black">계속하기</button>
+            </div>
+          </div>
+        )}
       </div>
       <TapToStartOverlay />
     </main>

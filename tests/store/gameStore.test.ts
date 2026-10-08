@@ -87,4 +87,11 @@ describe('gameStore', () => {
     expect(useGameStore.getState().airportQuizFirstCorrect).toBe(0);
     expect(useGameStore.getState().airportQuizAttemptedIds).toContain('c1');
   });
+  it('일시정지는 켜고 끌 수 있다', () => {
+    expect(useGameStore.getState().paused).toBe(false);
+    useGameStore.getState().setPaused(true);
+    expect(useGameStore.getState().paused).toBe(true);
+    useGameStore.getState().setPaused(false);
+    expect(useGameStore.getState().paused).toBe(false);
+  });
 });

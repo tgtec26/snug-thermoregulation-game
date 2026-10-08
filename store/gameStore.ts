@@ -52,6 +52,9 @@ export interface GameState {
   // 영구 안내 배너 (토스트와 별개 — 명시적으로 clear 호출 시까지 유지)
   guidance: string;
 
+  // 수업 중 멈춤 (저장하지 않는다)
+  paused: boolean;
+
   // 액션
   setPhase: (p: Phase) => void;
   setMapPosition: (p: MapPosition) => void;
@@ -74,6 +77,7 @@ export interface GameState {
   clickNode: (nodeId: string) => void;
   clearNodeClick: () => void;
   setTargetNodeId: (id: string | null) => void;
+  setPaused: (p: boolean) => void;
   reset: () => void;
 }
 
@@ -82,10 +86,11 @@ const initialState: Omit<GameState,
   | 'completeCountry' | 'adjustTemp' | 'setVesselState' | 'setSweatLevel'
   | 'setThyroxineLevel' | 'recordTick' | 'recordQuizAttempt' | 'completeQuiz' | 'setCharacterPos'
   | 'showToast' | 'setGuidance' | 'setActiveNodes' | 'clickNode' | 'clearNodeClick'
-  | 'setTargetNodeId' | 'reset'
+  | 'setTargetNodeId' | 'setPaused' | 'reset'
 > = {
   nickname: '',
   phase: 'title',
+  paused: false,
   chosenCold: null,
   chosenHot: null,
   actualCold: null,
@@ -199,6 +204,7 @@ export const useGameStore = create<GameState>()(
       },
 
       reset: () => set(initialState),
+      setPaused: (p) => set({ paused: p }),
     }),
     {
       name: 'thermoregulation-game',

@@ -1,5 +1,6 @@
 'use client';
 
+import { notFound } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import type {
   SceneNodes, WorldmapPaths, WorldmapRouteKey, KoreaBusPath,
@@ -78,6 +79,7 @@ const DEST_EMOJI: Record<'airport'|'outdoor'|'indoor', string> = {
 type PathMode = 'worldmap' | 'korea' | 'countrymap';
 
 export default function AdminPage() {
+  if (process.env.NODE_ENV === 'production') notFound();
   // ── 경로 편집 상태 ──
   const [pathMode, setPathMode]         = useState<PathMode>('worldmap');
   const [selectedRoute, setSelectedRoute] = useState<WorldmapRouteKey>('korea_finland');
